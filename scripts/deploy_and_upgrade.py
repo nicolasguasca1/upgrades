@@ -1,14 +1,16 @@
 from scripts.helpful_scripts import get_account, encode_function_data, upgrade
-from brownie import network, Box, ProxyAdmin, TransparentUpgradeableProxy, Contract, BoxV2
+from brownie import network, Box, ProxyAdmin, TransparentUpgradeableProxy, Contract, BoxV2, config
 
 
 def main():
     account = get_account()
     print(f"Deploying to {network.show_active()}")
     # Box would be the implementation contract. It needs to be hooked up to a proxy contract.
-    box = Box.deploy({"from": account})
+    box = Box.deploy(
+        {"from": account}, publish_source=config["networks"][network.show_active()]["verify"],)
 
-    proxy_admin = ProxyAdmin.deploy({"from": account})
+    proxy_admin = ProxyAdmin.deploy(
+        {"from": account}, publish_source=config["networks"][network.show_active()]["verify"],)
 
     initializer = box.store, 1
     box_encoded_initializer_function = encode_function_data()
@@ -17,14 +19,15 @@ def main():
         box.address,
         proxy_admin.address,
         box_encoded_initializer_function,
-        {"from": account, "gas_limit": 1000000}
+        {"from": account, "gas_limit": 1000000}, publish_source=config["networks"][network.show_active()]["verify"],
     )
     print(f"Proxy deployed to {proxy}, you can now upgrade to V2!")
     proxy_box = Contract.from_abi("Box", proxy.address, Box.abi)
     proxy_box.store(1, {"from": account})
 
     # Upgrade to V2
-    box_V2 = BoxV2.deploy({"from": account})
+    box_V2 = BoxV2.deploy(
+        {"from": account}, publish_source=config["networks"][network.show_active()]["verify"],)
     upgrade_transaction = upgrade(
         account, proxy, box_V2.address, proxy_admin_contract=proxy_admin)
     upgrade_transaction.wait(1)
